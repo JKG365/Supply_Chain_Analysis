@@ -1,0 +1,5 @@
+"0","supply <- read_excel(""data/supply_chain_data.xlsx"")
+```
+"
+"2","Error: attempt to use zero-length variable name
+"

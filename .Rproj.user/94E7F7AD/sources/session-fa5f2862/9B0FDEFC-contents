@@ -1,0 +1,144 @@
+---
+title: "Supply Chain Analysis"
+author: "Joshua Grant"
+date: "2025-10-19"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_download: true
+    self_contained: true
+    theme: cosmo
+---
+<p align="center">
+  <img src="jacques-dillies-jcav1COVvOc-unsplash.jpg" width="600px">
+</p>
+
+*Figure 1. Global Supply Chain Logistics — Image Source: Unsplash (free license).
+
+# Importing and Exploring the Data
+
+The dataset used in this project, titled *Supply Chain Logistics Problem*, was originally published on Kaggle by **shivaiyer129 (2013)**. It contains shipment records with variables such as product weight, unit quantity, plant location, and the number of days shipped early or late. This project aims to analyze shipping performance across multiple manufacturing plants to identify operational inefficiencies and improvement opportunities.
+
+The dataset was imported using the `readxl` package and cleaned with `janitor::clean_names()` to standardize variable names and ensure consistent formatting throughout the analysis.
+
+```{r setup, echo=FALSE}
+# Load packages
+library(tidyverse)
+library(readxl)
+library(janitor)
+library(DT)
+library(plotly)
+library(ggplot2)
+
+# Import dataset
+supply <- read_excel("data/supply_chain_data.xlsx")
+```
+
+
+```{r, echo=FALSE}
+# make column names consistent 
+supply <- supply %>%
+  clean_names()
+
+glimpse(supply)
+```
+
+## Tidying and Transforming the Data
+
+After import, the dataset was examined for missing values and variable clarity. To evaluate shipping performance at the plant level, two new variables were created: **ship_days**: The difference between early and late shipment days, providing a quick indicator of schedule adherence. **efficiency_score**: A ratio comparing early shipments to late shipments, allowing a standardized comparison of performance across plants. This transformation allows for a meaningful, quantitative assessment of supply chain reliability across facilities.
+
+```{r, echo=FALSE}
+summary(supply)
+
+# Total Shipment time (ahead - late) and efficientcy score of on-time vs late shipment
+supply <- supply %>%
+  mutate(
+    ship_days = ship_ahead_day_count - ship_late_day_count,
+    efficiency_score = (ship_ahead_day_count + 1) / (ship_late_day_count + 1)
+  )
+
+# Plant Summary
+
+p_summary <- supply %>%
+  group_by(plant_code) %>%
+  summarise(
+    total_orders = n(),
+    avg_units = mean(unit_quantity, na.rm = TRUE),
+    avg_weight = mean(weight, na.rm = TRUE),
+    avg_ship_ahead = mean(ship_ahead_day_count, na.rm = TRUE),
+    avg_ship_late = mean(ship_late_day_count, na.rm = TRUE),
+    avg_efficiency = mean(efficiency_score, na.rm = TRUE)
+  )
+
+p_summary
+  
+```
+
+### Visualization of Plant Efficiency
+
+```{r, echo=FALSE}
+# Plot of Shipping Effiency Average
+ggplot(p_summary, aes(x= reorder(plant_code, -avg_efficiency), y= avg_efficiency, fill = plant_code)) +
+  geom_col() +
+  labs(title = "Shipping Efficiency by Plant",
+       x = "Plant Code",
+       y = "Efficiency Score") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Plot to show Shipping Behavior between Early and Late Days
+ggplot(supply, aes(x = ship_ahead_day_count, y = ship_late_day_count, color = plant_code)) +
+  geom_point(alpha = 0.7) +
+  labs(title = "Ship Early vs Ship Late Counts",
+       x = "Days Shipped Early",
+       y = "Days Shipped Late") +
+  theme_minimal()
+```
+
+### Visual Insights
+
+The **Shipping Efficiency by Plant** bar chart shows that **PLANT09 consistently maintains the highest efficiency score**, indicating stronger on time delivery performance compared to other facilities. In contrast, several plants exhibit significantly lower efficiency, suggesting recurring fulfillment delays.
+
+The **Ship Early vs. Ship Late** scatter plot reinforces this finding. Most shipments cluster near zero late days, while a smaller subset of shipments with high late-day counts likely represents carrier delays, operational bottlenecks, or longer transportation routes.
+
+### Modeling
+
+To explore what factors affect efficiency, a multiple linear regression was conducted using unit quantity, shipping weight, and early, late day count as the independent variable, and efficiency score as the dependent variable. This model helps identify how these features relate to performance.
+
+```{r, echo=FALSE}
+# what factors effect efficiency using linear regression
+model <- lm(efficiency_score ~ unit_quantity + weight + ship_late_day_count, data = drop_na(supply))
+
+summary(model)
+```
+### Modeling Results
+
+A multiple linear regression model was used to examine the factors influencing shipping efficiency. The results indicate,  **Late-day shipments** have the strongest negative impact on efficiency *(Estimate = -0.76, p < 0.001)* .**Weight** has a small positive relationship with efficiency *(Estimate ≈ 0.001)*. **Unit quantity** shows a slight negative relationship*(Estimate < 0)*
+
+Although the model explains a modest portion of variance *(R² = 0.023)*, it provides meaningful insight:reducing late shipments is the most effective way to improve efficiency across plants.
+
+### Findings & Limitations
+
+This analysis indicates that shipping performance varies significantly across plants, with **PLANT09 demonstrating notably higher reliability**. The regression results highlight the impact of operational delays on efficiency, reinforcing the importance of minimizing late shipments to maintain performance standards.
+
+However, several limitations should be noted. The dataset does not include variables such as transportation distance, carrier type, or seasonal demand patterns, which could influence delivery timelines. Future analyses could incorporate forecasting models and carrier level comparisons to improve predictive accuracy and operational planning.
+
+### About Me
+
+<p align="center">
+  <img src="jkgheadshot.jpeg" width="200px">
+</p>
+
+*"Figure 2. Joshua Grant, M.S. Data Science & Analytics Student, Clemson University."*
+
+
+**I am Joshua Grant** I’m currently pursuing  *Master’s in Data Science and Analytics at* **Clemson University**, building a strong foundation in **statistical modeling**, **machine learning**, and **data visualization**. With a passion for transforming raw data into actionable insights, I thrive on solving complex problems and uncovering trends that drive smart decision-making.This project demonstrates how data analytics can improve supply chain decision making across multiple plants.
+
+### View my dashboard
+[**View Interactive Dashboard on GitHub**](Josh_Grant_Dashboard .Rmd) 
+
+### References
+- Iyer, S. (2021). *Supply Chain Logistics Problem Dataset*. Kaggle.
+- Dillies, J. (2021). *Supply chain containers photo* [Photograph]. Unsplash. https://unsplash.com/photos/jcav1COVvOc  

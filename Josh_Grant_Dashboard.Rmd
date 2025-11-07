@@ -1,0 +1,180 @@
+---
+title: "Supply Chain Dashboard"
+author: "Joshua Grant"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+    theme: cosmo
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+# Load Packages
+library(flexdashboard)
+library(ggplot2)
+library(plotly)
+library(DT)
+library(dplyr)
+library(readxl)
+library(janitor)
+library(tidyverse)
+library(shiny)
+
+# Load and clean data
+supply <- read_excel("data/supply_chain_data.xlsx") %>%
+  clean_names() %>%
+  mutate(
+    ship_days = ship_ahead_day_count - ship_late_day_count,
+    efficiency_score = (ship_ahead_day_count + 1) / (ship_late_day_count + 1)
+  )
+
+#list for plants
+plist <- sort(unique(supply$plant_code))
+```
+
+Row {data-height=300}
+-----------------------------------------------------------------------
+
+### Table for Plant
+
+```{r, echo=FALSE}
+# selecting plant
+selectInput("plant_input", "Choose a Plant:",
+            choices = c("ALL", plist),
+            selected = "ALL")
+
+
+renderDataTable({
+  filtered <- if (input$plant_input == "ALL") {
+    supply
+  } else {
+    filter(supply, plant_code == input$plant_input)
+  }
+  
+  
+  datatable(
+    filtered,
+    options = list(
+      pageLength = 5,
+      autowidth = TRUE,
+      scrollX = TRUE
+      )
+    )
+})
+
+```
+
+
+### Overview 
+
+The dataset used in this project, titled *Supply Chain Logistics Problem*, was originally published on Kaggle by **shivaiyer129 (2013)**. It contains shipment records with variables such as product weight, unit quantity, plant location, and the number of days shipped early or late. This project aims to analyze shipping performance across multiple manufacturing plants to identify operational inefficiencies and improvement opportunities.
+
+The dataset was imported using the `readxl` package and cleaned with `janitor::clean_names()` to standardize variable names and ensure consistent formatting throughout the analysis.
+
+```{r}
+# Total Shipment time (ahead - late) and efficientcy score of on-time vs late shipment
+supply <- supply %>%
+  mutate(
+    ship_days = ship_ahead_day_count - ship_late_day_count,
+    efficiency_score = (ship_ahead_day_count + 1) / (ship_late_day_count + 1)
+  )
+```
+
+Column {data-width=800}
+-----------------------------------------------------------------------
+
+### Shipping Efficiency by Plant
+
+Bar Chart shows the average efficiency scores across plants. Each plots updates when a user select a specific plant.
+
+```{r}
+# Plot of Shipping Efficiency Average
+
+renderPlotly({
+  filtered <-  if (toupper(input$plant_input) == "ALL") {
+    supply
+  } else {
+    dplyr::filter(supply, plant_code == input$plant_input)
+  }
+  
+  eff_plot <- filtered %>%
+    group_by(plant_code) %>%
+    summarise(avg_efficiency = mean(efficiency_score, na.rm = TRUE)) %>%
+    ggplot(aes(x= reorder(plant_code, -avg_efficiency),
+               y= avg_efficiency,
+               fill = plant_code)) +
+    geom_col() +
+    labs(title = "Shipping Efficiency by Plant",
+         x = "Plant Code",
+         y = "Efficiency Score") +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  
+  ggplotly(eff_plot)
+})
+```
+
+Column {data-width=800}
+-----------------------------------------------------------------------
+
+### Ship Early vs Ship Late Counts
+
+Scatterplot comparing early and late shipping behavior.
+
+```{r}
+# Plot to show Shipping Behavior between Early and Late Days
+renderPlotly({
+  filtered <- if(toupper(input$plant_input) == "ALL") {
+    supply
+  } else {
+    dplyr::filter(supply, plant_code == input$plant_input)
+  }
+
+
+ship_plot <-ggplot(filtered, aes(x = ship_ahead_day_count,
+                                        y = ship_late_day_count, 
+                                        color = plant_code)) +
+    geom_point(alpha = 0.7) +
+    labs(title = "Ship Early vs Ship Late Counts",
+         x = "Days Shipped Early",
+         y = "Days Shipped Late") +
+    theme_minimal()
+
+  ggplotly(ship_plot)
+
+})  
+
+```
+
+Row {data-height=250}
+-----------------------------------------------------------------------
+
+### Model Summary
+
+To explore what factors affect efficiency, a multiple linear regression was conducted using unit quantity, shipping weight, and early, late day count as the independent variable, and efficiency score as the dependent variable. This model helps identify how these features relate to performance.
+
+
+```{r}
+# what factors effect efficiency using linear regression
+model <- lm(efficiency_score ~ unit_quantity + weight + ship_late_day_count, data = supply)
+summary(model)
+
+```
+
+### Findings & Limitations
+
+This analysis indicates that shipping performance varies significantly across plants, with **PLANT09 demonstrating notably higher reliability**. The regression results highlight the impact of operational delays on efficiency, reinforcing the importance of minimizing late shipments to maintain performance standards.
+
+However, several limitations should be noted. The dataset does not include variables such as transportation distance, carrier type, or seasonal demand patterns, which could influence delivery timelines. Future analyses could incorporate forecasting models and carrier level comparisons to improve predictive accuracy and operational planning.
+
+### About Me
+
+<div style="text-align:center;">
+  <img src="jkgheadshot.jpeg" width="150px" style="border-radius:50%; margin-bottom:10px;">
+</div>
+
+**I am Joshua Grant** I’m currently pursuing my *Master’s in Data Science and Analytics at* **Clemson University**, where I’m building a strong foundation in **statistical modeling**, **machine learning**, and **data engineering**. With a passion for transforming raw data into actionable insights, I thrive on solving complex problems and uncovering trends that drive smart decision-making. My coursework have allowed me to work with tools like Python, and R while collaborating in team-based environments that mirror real-world industry challenges.I’m especially interested in applying data science in areas like finance, supply chain, and Tech. I’m actively seeking internship or full-time opportunities where I can contribute meaningfully and continue growing as a data professional. I currently work as a site supervisor while transitioning into an entry-level role in data science or analytics.
+
+### References
+- Iyer, S. (2021). *Supply Chain Logistics Problem Dataset*. Kaggle. 
