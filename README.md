@@ -3,6 +3,12 @@
 **Program:** M.S. Data Science & Analytics, Clemson University  
 **Tools:** R, tidyverse, readxl, ggplotly, ggplot2, plotly, DT, janitor
 
+
+## Interactive Dashboard
+Explore my interactive dashboard:
+<https://jkg365.shinyapps.io/josh_grant_dashboard/> 
+
+
 ## Project Overview
 This project analyzes supply chain logistics performance, focusing on delivery efficiency, shipment timing, and cost variability across vendors and routes.
 
