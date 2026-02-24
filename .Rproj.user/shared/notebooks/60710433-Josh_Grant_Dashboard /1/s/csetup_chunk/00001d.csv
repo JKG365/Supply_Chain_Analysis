@@ -1,4 +1,0 @@
-"0","supply <- read_excel(""data/supply_chain_data.xlsx"")
-"
-"2","Error: `path` does not exist: ‘data/supply_chain_data.xlsx’
-"
